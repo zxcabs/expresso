@@ -103,6 +103,11 @@ var jsonCoverage = false;
 var jsonFile;
 
 /**
+ * UTF8 decode
+ */
+var utfDecode = false;
+
+/**
  * Usage documentation.
  */
 
@@ -113,6 +118,7 @@ var usage = ''
     + '\n  -g, --growl          Enable growl notifications'
     + '\n  -c, --coverage       Generate and report test coverage'
     + '\n  -j, --json PATH      Used in conjunction with --coverage, ouput JSON coverage to PATH'
+	+ '\n  -u, --utf8           Utf8 decode'
     + '\n  -q, --quiet          Suppress coverage report if 100%'
     + '\n  -t, --timeout MS     Timeout in milliseconds, defaults to 2000'
     + '\n  -r, --require PATH   Require the given module path'
@@ -219,6 +225,10 @@ while (args.length) {
                 throw new Error('--json requires file to write to');
             }
             break;
+		case '-u':
+		case '--utf':
+			utfDecode = true;
+			break;
         default:
             if (file_matcher.test(arg)) {
                 files.push(arg);
@@ -575,29 +585,36 @@ function reportCoverageTable(cov) {
     // Stats
     print('\n   [bold]{Test Coverage}\n');
     var sep = '   +------------------------------------------+----------+------+------+--------+',
-        lastSep = '                                              +----------+------+------+--------+';
+        lastSep = '                                              +----------+------+------+--------+',
+		buff = '';
     sys.puts(sep);
     sys.puts('   | filename                                 | coverage | LOC  | SLOC | missed |');
     sys.puts(sep);
     for (var name in cov) {
         var file = cov[name];
         if (Array.isArray(file)) {
-            sys.print('   | ' + rpad(name, 40));
-            sys.print(' | ' + lpad(file.coverage.toFixed(2), 8));
-            sys.print(' | ' + lpad(file.LOC, 4));
-            sys.print(' | ' + lpad(file.SLOC, 4));
-            sys.print(' | ' + lpad(file.totalMisses, 6));
-            sys.print(' |\n');
+			buff = '   | ' + rpad(name, 40)
+				 + ' | ' + lpad(file.coverage.toFixed(2), 8)
+				 + ' | ' + lpad(file.LOC, 4)
+				 + ' | ' + lpad(file.SLOC, 4)
+				 + ' | ' + lpad(file.totalMisses, 6)
+				 + ' |';
+			sys.puts(buff);
+			buff = '';
         }
     }
-    sys.puts(sep);
-    sys.print('     ' + rpad('', 40));
-    sys.print(' | ' + lpad(cov.coverage.toFixed(2), 8));
-    sys.print(' | ' + lpad(cov.LOC, 4));
-    sys.print(' | ' + lpad(cov.SLOC, 4));
-    sys.print(' | ' + lpad(cov.totalMisses, 6));
-    sys.print(' |\n');
-    sys.puts(lastSep);
+	
+	buff = sep + '\n'
+		 + '     ' + rpad('', 40)
+		 + ' | ' + lpad(cov.coverage.toFixed(2), 8)
+		 + ' | ' + lpad(cov.LOC, 4)
+		 + ' | ' + lpad(cov.SLOC, 4)
+		 + ' | ' + lpad(cov.totalMisses, 6)
+		 + ' |';
+	sys.puts(buff);
+	buff = '';
+    
+	sys.puts(lastSep);
     // Source
     for (var name in cov) {
         if (name.match(file_matcher)) {
@@ -669,6 +686,7 @@ function populateCoverage(cov) {
             // Source
             var width = file.source.length.toString().length;
             file.source = file.source.map(function(line, i){
+				if (utfDecode) line = decode(line);
                 ++i;
                 var hits = file[i] === 0 ? 0 : (file[i] || ' ');
                 if (!boring) {
@@ -686,6 +704,36 @@ function populateCoverage(cov) {
     cov.coverage = (cov.totalHits / cov.SLOC) * 100;
 }
 
+/**
+ * Decode escape charset to utf8
+ */
+function decode(str) {
+    var utftext = str.replace(/&#(\d{3});/g, function (str, n) { return String.fromCharCode(n)})
+       , string = ""
+       , i = 0
+       , c1 = c2 = c3 = 0
+       ;
+
+    while ( i < utftext.length ) {
+        c1 = utftext.charCodeAt(i);
+        if (c1 < 128) {
+           string += String.fromCharCode(c1);
+           i++;
+        } else if((c1 > 191) && (c1 < 224)) {
+           c2 = utftext.charCodeAt(i + 1);
+           string += String.fromCharCode(((c1 & 31) << 6) | (c2 & 63));
+           i += 2;
+        } else {
+           c2 = utftext.charCodeAt(i + 1);
+           c3 = utftext.charCodeAt(i + 2);
+           string += String.fromCharCode(((c1 & 15) << 12) | ((c2 & 63) << 6) | (c3 & 63));
+           i += 3;
+        }
+     }
+     return string;
+}
+
+ 
 /**
  * Total coverage for the given file data.
  *
