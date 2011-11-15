@@ -601,12 +601,11 @@ function reportCoverageTable(cov) {
     // Stats
     print('\n   [bold]{Test Coverage}\n');
     var sep = '   +------------------------------------------+----------+------+------+--------+',
-<<<<<<< HEAD
         lastSep = '                                              +----------+------+------+--------+',
 		buff = '';
-    sys.puts(sep);
-    sys.puts('   | filename                                 | coverage | LOC  | SLOC | missed |');
-    sys.puts(sep);
+    buff += sep + '\n';
+    buff += '   | filename                                 | coverage | LOC  | SLOC | missed |' + '\n';
+    buff += sep + '\n';
     for (var name in cov) {
         var file = cov[name];
         if (Array.isArray(file)) {
@@ -616,8 +615,7 @@ function reportCoverageTable(cov) {
 				 + ' | ' + lpad(file.SLOC, 4)
 				 + ' | ' + lpad(file.totalMisses, 6)
 				 + ' |';
-			sys.puts(buff);
-			buff = '';
+			buff += '\n';
         }
     }
 	
@@ -628,9 +626,9 @@ function reportCoverageTable(cov) {
 		 + ' | ' + lpad(cov.SLOC, 4)
 		 + ' | ' + lpad(cov.totalMisses, 6)
 		 + ' |';
+	
+	buff += lastSep + '\n';
 	console.log(buff);
-	buff = '';
-	console.log(lastSep);
 
     // Source
     for (var name in cov) {
