@@ -14,7 +14,7 @@ var assert = require('assert'),
     childProcess = require('child_process'),
     http = require('http'),
     path = require('path'),
-    sys = require('sys'),
+    util = require('util'),
     cwd = process.cwd(),
     fs = require('fs'),
     defer;
@@ -39,7 +39,7 @@ try {
  * Expresso version.
  */
 
-var version = '0.8.1';
+var version = '0.9.2';
 
 /**
  * Failure count.
@@ -136,7 +136,6 @@ var usage = ''
     + '\n  -r, --require PATH   Require the given module path'
     + '\n  -o, --only TESTS     Execute only the comma sperated TESTS (can be set several times)'
     + '\n  -m, --match EXP      Execute only tests matching a given regular expression (can be set several times)'
-    + '\n  -I, --include PATH   Unshift the given path to require.paths'
     + '\n  -p, --port NUM       Port number for test servers, starts at 5555'
     + '\n  -s, --serial         Execute tests serially'
     + '\n  -b, --boring         Suppress ansi-escape colors'
@@ -159,17 +158,8 @@ while (args.length) {
             break;
         case '-v':
         case '--version':
-            sys.puts(version);
+            console.log(version);
             process.exit(1);
-            break;
-        case '-i':
-        case '-I':
-        case '--include':
-            if (arg = args.shift()) {
-                require.paths.unshift(arg);
-            } else {
-                throw new Error('--include requires a path');
-            }
             break;
         case '-o':
         case '--only':
@@ -211,16 +201,16 @@ while (args.length) {
             throw new Error('--timeout requires an argument');
           }
           break;
-        case '-c':
-        case '--cov':
-        case '--coverage':
-            defer = true;
-            childProcess.exec('rm -fr lib-cov && node-jscoverage lib lib-cov', function(err) {
-                if (err) throw err;
-                require.paths.unshift('lib-cov');
-                run(files);
-            });
-            break;
+        // case '-c':
+        // case '--cov':
+        // case '--coverage':
+        //     defer = true;
+        //     childProcess.exec('rm -fr lib-cov && node-jscoverage lib lib-cov', function(err){
+        //         if (err) throw err;
+        //         require.paths.unshift('lib-cov');
+        //         run(files);
+        //     })
+        //     break;
         case '-q':
         case '--quiet':
             quiet = true;
@@ -259,13 +249,13 @@ while (args.length) {
 }
 
 /**
- * Colorized sys.error().
+ * Colorized console.error().
  *
  * @param {String} str
  */
 
-function print(str) {
-    sys.error(colorize(str));
+function print(str){
+    console.error(colorize(str));
 }
 
 /**
@@ -343,7 +333,7 @@ assert.isDefined = function(val, msg) {
 
 assert.type = function(obj, type, msg) {
     var real = typeof obj;
-    msg = msg || 'typeof ' + sys.inspect(obj) + ' is ' + real + ', expected ' + type;
+    msg = msg || 'typeof ' + util.inspect(obj) + ' is ' + real + ', expected ' + type;
     assert.ok(type === real, msg);
 };
 
@@ -356,7 +346,7 @@ assert.type = function(obj, type, msg) {
  */
 
 assert.match = function(str, regexp, msg) {
-    msg = msg || sys.inspect(str) + ' does not match ' + sys.inspect(regexp);
+    msg = msg || util.inspect(str) + ' does not match ' + util.inspect(regexp);
     assert.ok(regexp.test(str), msg);
 };
 
@@ -374,7 +364,7 @@ assert.match = function(str, regexp, msg) {
  */
 
 assert.includes = function(obj, val, msg) {
-    msg = msg || sys.inspect(obj) + ' does not include ' + sys.inspect(val);
+    msg = msg || util.inspect(obj) + ' does not include ' + util.inspect(val);
     assert.ok(obj.indexOf(val) >= 0, msg);
 };
 
@@ -387,7 +377,7 @@ assert.includes = function(obj, val, msg) {
  */
 
 assert.length = function(val, n, msg) {
-    msg = msg || sys.inspect(val) + ' has length of ' + val.length + ', expected ' + n;
+    msg = msg || util.inspect(val) + ' has length of ' + val.length + ', expected ' + n;
     assert.equal(n, val.length, msg);
 };
 
@@ -435,6 +425,7 @@ assert.response = function(server, req, res, msg) {
     }
 
     // Pending responses
+    server.setMaxListeners(99999);
     server.__pending = server.__pending || 0;
     server.__pending++;
 
@@ -505,8 +496,8 @@ assert.response = function(server, req, res, msg) {
                         assert.ok(
                             eql,
                             msg + 'Invalid response body.\n'
-                                + '    Expected: ' + sys.inspect(res.body) + '\n'
-                                + '    Got: ' + sys.inspect(response.body)
+                                + '    Expected: ' + util.inspect(res.body) + '\n'
+                                + '    Got: ' + util.inspect(response.body)
                         );
                     }
 
@@ -610,6 +601,7 @@ function reportCoverageTable(cov) {
     // Stats
     print('\n   [bold]{Test Coverage}\n');
     var sep = '   +------------------------------------------+----------+------+------+--------+',
+<<<<<<< HEAD
         lastSep = '                                              +----------+------+------+--------+',
 		buff = '';
     sys.puts(sep);
@@ -636,10 +628,10 @@ function reportCoverageTable(cov) {
 		 + ' | ' + lpad(cov.SLOC, 4)
 		 + ' | ' + lpad(cov.totalMisses, 6)
 		 + ' |';
-	sys.puts(buff);
+	console.log(buff);
 	buff = '';
-    
-	sys.puts(lastSep);
+	console.log(lastSep);
+
     // Source
     for (var name in cov) {
         if (name.match(file_matcher)) {
@@ -647,7 +639,7 @@ function reportCoverageTable(cov) {
             if ((file.coverage < 100) || !quiet) {
                print('\n   [bold]{' + name + '}:');
                print(file.source);
-               sys.print('\n');
+               process.stdout.write('\n');
             }
         }
     }
@@ -828,9 +820,9 @@ function run(files) {
 function cursor(show) {
     if (boring) return;
     if (show) {
-        sys.print('\x1b[?25h');
+        process.stdout.write('\x1b[?25h');
     } else {
-        sys.print('\x1b[?25l');
+        process.stdout.write('\x1b[?25l');
     }
 }
 
@@ -992,8 +984,8 @@ Test.prototype.run = function(callback) {
 
 Test.prototype.runSerial = function(callback) {
     var test = this;
-    sys.print('.');
-    if (++dots % 25 === 0) sys.print('\n');
+    process.stdout.write('.');
+    if (++dots % 25 === 0) console.log();
     test.setup(function() {
         if (test.fn.length < 1) {
             test.fn();
